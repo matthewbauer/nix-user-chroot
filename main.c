@@ -38,12 +38,29 @@ static void update_map(char *mapping, char *map_file) {
     close(fd);
 }
 
-int main(int argc, char *argv[]) {
-    char map_buf[1024];
+static void add_path(const char* name, const char* rootdir) {
     char path_buf[PATH_MAX];
     char path_buf2[PATH_MAX];
-    char cwd[PATH_MAX];
 
+    snprintf(path_buf, sizeof(path_buf), "/%s", name);
+
+    struct stat statbuf;
+    if (stat(path_buf, &statbuf) < 0) {
+        fprintf(stderr, "Cannot stat %s: %s\n", path_buf, strerror(errno));
+        return;
+    }
+
+    snprintf(path_buf2, sizeof(path_buf2), "%s/%s", rootdir, name);
+
+    if (S_ISDIR(statbuf.st_mode)) {
+        mkdir(path_buf2, statbuf.st_mode & ~S_IFMT);
+        if (mount(path_buf, path_buf2, "none", MS_BIND | MS_REC, NULL) < 0) {
+            fprintf(stderr, "Cannot bind mount %s to %s: %s\n", path_buf, path_buf2, strerror(errno));
+        }
+    }
+}
+
+int main(int argc, char *argv[]) {
     if (argc < 3) {
         usage(argv[0]);
     }
@@ -76,42 +93,19 @@ int main(int argc, char *argv[]) {
         err_exit("unshare()");
     }
 
-    // bind mount all / stuff into rootdir
-    DIR* d = opendir("/");
-    if (!d) {
-        err_exit("open /");
-    }
-
-    struct dirent *ent;
-    while ((ent = readdir(d))) {
-        // do not bind mount an existing nix installation
-        if (!strcmp(ent->d_name, ".") || !strcmp(ent->d_name, "..") || !strcmp(ent->d_name, "nix")) {
-            continue;
-        }
-
-        snprintf(path_buf, sizeof(path_buf), "/%s", ent->d_name);
-
-        struct stat statbuf;
-        if (stat(path_buf, &statbuf) < 0) {
-            fprintf(stderr, "Cannot stat %s: %s\n", path_buf, strerror(errno));
-            continue;
-        }
-
-        snprintf(path_buf2, sizeof(path_buf2), "%s/%s", rootdir, ent->d_name);
-
-        if (S_ISDIR(statbuf.st_mode)) {
-            mkdir(path_buf2, statbuf.st_mode & ~S_IFMT);
-            if (mount(path_buf, path_buf2, "none", MS_BIND | MS_REC, NULL) < 0) {
-                fprintf(stderr, "Cannot bind mount %s to %s: %s\n", path_buf, path_buf2, strerror(errno));
-            }
-        }
-    }
+    add_path("dev", rootdir);
+    add_path("proc", rootdir);
+    add_path("sys", rootdir);
+    add_path("run", rootdir);
+    add_path("tmp", rootdir);
+    add_path("var", rootdir);
 
     struct stat statbuf2;
     if (stat(nixdir, &statbuf2) < 0) {
         err_exit("stat(%s)", nixdir);
     }
 
+    char path_buf[PATH_MAX];
     snprintf(path_buf, sizeof(path_buf), "%s/nix", rootdir);
     mkdir(path_buf, statbuf2.st_mode & ~S_IFMT);
     if (mount(nixdir, path_buf, "none", MS_BIND | MS_REC, NULL) < 0) {
@@ -126,25 +120,17 @@ int main(int argc, char *argv[]) {
     }
 
     // map the original uid/gid in the new ns
+    char map_buf[1024];
     snprintf(map_buf, sizeof(map_buf), "%d %d 1", uid, uid);
     update_map(map_buf, "/proc/self/uid_map");
-
     snprintf(map_buf, sizeof(map_buf), "%d %d 1", gid, gid);
     update_map(map_buf, "/proc/self/gid_map");
 
-    if (!getcwd(cwd, PATH_MAX)) {
-        err_exit("getcwd()");
-    }
-
-    chdir("/");
     if (chroot(rootdir) < 0) {
         err_exit("chroot(%s)", rootdir);
     }
-    chdir(cwd);
 
     // execute the command
-
-    setenv("NIX_CONF_DIR", "/nix/etc/nix", 1);
     execvp(argv[2], argv+2);
     err_exit("execvp(%s)", argv[2]);
 }
