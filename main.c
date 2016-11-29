@@ -1,3 +1,10 @@
+/*
+ * This file is based on @lethalman's nix-user-chroot. This file has
+ * diverged from it though.
+ *
+ * Usage: nix-user-chroot <nixpath> <command>
+ */
+
 #define _GNU_SOURCE
 #include <sched.h>
 #include <unistd.h>
@@ -81,18 +88,22 @@ int main(int argc, char *argv[]) {
         err_exit("mkdtemp(%s)", template);
     }
 
+    // determine absolute directory for nix dir
     char *nixdir = realpath(argv[1], NULL);
     if (!nixdir) {
         err_exit("realpath(%s)", argv[1]);
     }
 
+    // get uid, gid before going to new namespace
     uid_t uid = getuid();
     gid_t gid = getgid();
 
+    // "unshare" into new namespace
     if (unshare(CLONE_NEWNS | CLONE_NEWUSER) < 0) {
         err_exit("unshare()");
     }
 
+    // add necessary system stuff to rootdir namespace
     add_path("dev", rootdir);
     add_path("proc", rootdir);
     add_path("sys", rootdir);
@@ -100,11 +111,13 @@ int main(int argc, char *argv[]) {
     add_path("tmp", rootdir);
     add_path("var", rootdir);
 
+    // make sure nixdir exists
     struct stat statbuf2;
     if (stat(nixdir, &statbuf2) < 0) {
         err_exit("stat(%s)", nixdir);
     }
 
+    // mount /nix to new namespace
     char path_buf[PATH_MAX];
     snprintf(path_buf, sizeof(path_buf), "%s/nix", rootdir);
     mkdir(path_buf, statbuf2.st_mode & ~S_IFMT);
@@ -126,6 +139,7 @@ int main(int argc, char *argv[]) {
     snprintf(map_buf, sizeof(map_buf), "%d %d 1", gid, gid);
     update_map(map_buf, "/proc/self/gid_map");
 
+    // chroot to rootdir
     if (chroot(rootdir) < 0) {
         err_exit("chroot(%s)", rootdir);
     }
