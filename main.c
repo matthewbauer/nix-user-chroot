@@ -145,6 +145,8 @@ int main(int argc, char *argv[]) {
     }
 
     // execute the command
+    setenv("NIX_PATH", NIX_PATH, 1);
+    setenv("NIX_SSL_CERT_FILE", NIX_SSL_CERT_FILE, 1);
     execvp(argv[2], argv+2);
     err_exit("execvp(%s)", argv[2]);
 }
