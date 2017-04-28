@@ -110,6 +110,7 @@ int main(int argc, char *argv[]) {
     add_path("run", rootdir);
     add_path("tmp", rootdir);
     add_path("var", rootdir);
+    add_path("etc", rootdir);
 
     // make sure nixdir exists
     struct stat statbuf2;
