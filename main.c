@@ -149,14 +149,15 @@ int main(int argc, char *argv[]) {
         err_exit("chroot(%s)", rootdir);
     }
 
-    // execute the command
     chdir("/");
 
+    clearenv();
     setenv("NIX_PATH", NIX_PATH, 1);
     setenv("NIX_SSL_CERT_FILE", NIX_SSL_CERT_FILE, 1);
     setenv("PATH", ENV_PATH, 1);
     setenv("HOME", ENV_HOME, 1);
 
+    // execute the command
     execvp(argv[2], argv+2);
     err_exit("execvp(%s)", argv[2]);
 }
