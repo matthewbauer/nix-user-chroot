@@ -144,20 +144,14 @@ int main(int argc, char *argv[]) {
     snprintf(map_buf, sizeof(map_buf), "%d %d 1", gid, gid);
     update_map(map_buf, "/proc/self/gid_map");
 
-    char cwd[PATH_MAX];
-    if (!getcwd(cwd, PATH_MAX)) {
-        err_exit("getcwd()");
-    }
-
-    chdir("/");
-
     // chroot to rootdir
     if (chroot(rootdir) < 0) {
         err_exit("chroot(%s)", rootdir);
     }
-    chdir(cwd);
 
     // execute the command
+    chdir("/");
+
     setenv("NIX_PATH", NIX_PATH, 1);
     setenv("NIX_SSL_CERT_FILE", NIX_SSL_CERT_FILE, 1);
     setenv("PATH", ENV_PATH, 1);
