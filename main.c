@@ -108,9 +108,14 @@ int main(int argc, char *argv[]) {
     add_path("proc", rootdir);
     add_path("sys", rootdir);
     add_path("run", rootdir);
-    add_path("tmp", rootdir);
-    add_path("var", rootdir);
     add_path("etc", rootdir);
+    /* add_path("tmp", rootdir); */
+    /* add_path("var", rootdir); */
+
+    char path_buf[PATH_MAX];
+    snprintf(path_buf, sizeof(path_buf), "%s/tmp", rootdir);
+    mkdir(path_buf, ~0);
+    snprintf(path_buf, sizeof(path_buf), "%s/var", rootdir);
 
     // make sure nixdir exists
     struct stat statbuf2;
@@ -119,7 +124,6 @@ int main(int argc, char *argv[]) {
     }
 
     // mount /nix to new namespace
-    char path_buf[PATH_MAX];
     snprintf(path_buf, sizeof(path_buf), "%s/nix", rootdir);
     mkdir(path_buf, statbuf2.st_mode & ~S_IFMT);
     if (mount(nixdir, path_buf, "none", MS_BIND | MS_REC, NULL) < 0) {
