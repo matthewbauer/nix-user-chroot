@@ -109,8 +109,9 @@ int main(int argc, char *argv[]) {
     add_path("sys", rootdir);
     add_path("run", rootdir);
     add_path("etc", rootdir);
-    /* add_path("tmp", rootdir); */
-    /* add_path("var", rootdir); */
+    add_path("tmp", rootdir);
+    add_path("var", rootdir);
+    add_path("home", rootdir);
 
     char path_buf[PATH_MAX];
     snprintf(path_buf, sizeof(path_buf), "%s/tmp", rootdir);
